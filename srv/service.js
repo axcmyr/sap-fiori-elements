@@ -157,20 +157,54 @@ module.exports = cds.service.impl(async function () {
         }
 
         try {
-            console.log('Fetching live flight data from OpenSky Network...');
-            const response = await axios.get('https://opensky-network.org/api/states/all', {
-                params: { lamin: 49.9, lomin: 8.4, lamax: 50.2, lomax: 8.8 }
+            console.log('Fetching live flight data from Top 10 Global Airports...');
+
+            // Top 10 Airports Bounding Boxes
+            const airports = [
+                { code: 'ATL', lat: 33.64, lon: -84.42 },
+                { code: 'LHR', lat: 51.47, lon: -0.45 },
+                { code: 'DXB', lat: 25.25, lon: 55.36 },
+                { code: 'HND', lat: 35.54, lon: 139.77 },
+                { code: 'ORD', lat: 41.97, lon: -87.90 },
+                { code: 'LAX', lat: 33.94, lon: -118.40 },
+                { code: 'CDG', lat: 49.00, lon: 2.55 },
+                { code: 'DFW', lat: 32.89, lon: -97.04 },
+                { code: 'DEN', lat: 39.85, lon: -104.67 },
+                { code: 'IST', lat: 41.27, lon: 28.75 }
+            ];
+
+            // Fetch concurrently (limit to top 3 per airport)
+            const flightPromises = airports.map(async (airport) => {
+                try {
+                    const response = await axios.get('https://opensky-network.org/api/states/all', {
+                        params: {
+                            lamin: airport.lat - 0.2,
+                            lomin: airport.lon - 0.2,
+                            lamax: airport.lat + 0.2,
+                            lomax: airport.lon + 0.2
+                        },
+                        timeout: 3000 // Short timeout
+                    });
+                    const states = response.data.states || [];
+                    // Return states tagged with their origin airport code
+                    return states.slice(0, 3).map(s => ({ state: s, origin: airport.code }));
+                } catch (err) {
+                    console.log(`Failed to fetch ${airport.code}: ${err.message}`);
+                    return [];
+                }
             });
 
-            const states = response.data.states || [];
-            console.log(`OpenSky returned ${states.length} flights around FRA.`);
+            const results = await Promise.all(flightPromises);
+            const allStates = results.flat(); // Flatten array of arrays
+            console.log(`OpenSky returned ${allStates.length} live flights across top airports.`);
 
-            // Clear cache on list refresh to prevent infinite growth
-            // In a multi-user, production app, this would need a better strategy (e.g. LRU or per-session)
-            // For this demo, clearing on list read is acceptable, assuming list read precedes detail read.
+            // Clear cache on list refresh
             idToIcaoMap.clear();
 
-            const realFlights = states.slice(0, 10).map((state, index) => {
+            const realFlights = allStates.map((item, index) => {
+                const state = item.state;
+                const originCode = item.origin;
+
                 const artificialID = 500 + index;
                 const icao24 = state[0];
 
@@ -179,12 +213,13 @@ module.exports = cds.service.impl(async function () {
 
                 const callsign = state[1]?.trim() || `FLT${index}`;
                 const displayAirline = getAirlineName(callsign);
+
                 return {
                     ID: artificialID,
                     Name: callsign + ' (Live)',
                     FlightStart: new Date().toISOString().split('.')[0] + 'Z',
                     FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString().split('.')[0] + 'Z',
-                    OriginAirport_Code: 'FRA',
+                    OriginAirport_Code: originCode,
                     DestinationAirport_Code: 'ANY',
                     Airline: displayAirline,
                     FlightNumber: callsign,
