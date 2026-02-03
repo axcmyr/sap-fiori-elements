@@ -5,10 +5,17 @@ entity Flights {
   Name : String(100);
   FlightStart : DateTime;
   FlightEnd : DateTime;
-  OriginAirport : String(3);
-  DestinationAirport : String(3);
+  OriginAirport : Association to Airports;
+  DestinationAirport : Association to Airports;
   PassengerCount : Integer;
   to_Bookings : Composition of many Bookings on to_Bookings.Flight = $self;
+}
+
+entity Airports {
+  key Code : String(3);
+  Name : String(100);
+  City : String(100);
+  Country : String(100);
 }
 
 entity Bookings {

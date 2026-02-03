@@ -14,14 +14,14 @@ annotate FlightService.Flights with @(
       ],
       Visualizations: [ '@UI.LineItem' ]
     },
-    SelectionFields: [ FlightStart, OriginAirport, DestinationAirport, ID, Name ],
+    SelectionFields: [ FlightStart, OriginAirport_Code, DestinationAirport_Code, ID, Name ],
     LineItem: [
       { Value: ID, Label: '{i18n>ID}' },
       { Value: Name, Label: '{i18n>Name}' },
       { Value: FlightStart, Label: '{i18n>FlightStart}' },
       { Value: FlightEnd, Label: '{i18n>FlightEnd}' },
-      { Value: OriginAirport, Label: '{i18n>OriginAirport}' },
-      { Value: DestinationAirport, Label: '{i18n>DestinationAirport}' },
+      { Value: OriginAirport_Code, Label: '{i18n>OriginAirport}' },
+      { Value: DestinationAirport_Code, Label: '{i18n>DestinationAirport}' },
       { Value: PassengerCount, Label: '{i18n>PassengerCount}' }
     ],
     Facets: [
@@ -44,8 +44,8 @@ annotate FlightService.Flights with @(
         { Value: Name, Label: '{i18n>Name}' },
         { Value: FlightStart, Label: '{i18n>FlightStart}' },
         { Value: FlightEnd, Label: '{i18n>FlightEnd}' },
-        { Value: OriginAirport, Label: '{i18n>OriginAirport}' },
-        { Value: DestinationAirport, Label: '{i18n>DestinationAirport}' },
+        { Value: OriginAirport_Code, Label: '{i18n>OriginAirport}' },
+        { Value: DestinationAirport_Code, Label: '{i18n>DestinationAirport}' },
         { Value: PassengerCount, Label: '{i18n>PassengerCount}' }
       ]
     }
@@ -85,3 +85,38 @@ annotate FlightService.Bookings with @(
   }
 );
 
+
+annotate FlightService.Flights with {
+  OriginAirport @(
+    Common: {
+      Text: OriginAirport.Name,
+      TextArrangement: #TextFirst,
+      ValueList: {
+        Label: '{i18n>Airports}',
+        CollectionPath: 'Airports',
+        Parameters: [
+          { $Type: 'Common.ValueListParameterInOut', LocalDataProperty: OriginAirport_Code, ValueListProperty: 'Code' },
+          { $Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'Name' },
+          { $Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'City' },
+          { $Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'Country' }
+        ]
+      }
+    }
+  );
+  DestinationAirport @(
+    Common: {
+      Text: DestinationAirport.Name,
+      TextArrangement: #TextFirst,
+      ValueList: {
+        Label: '{i18n>Airports}',
+        CollectionPath: 'Airports',
+        Parameters: [
+          { $Type: 'Common.ValueListParameterInOut', LocalDataProperty: DestinationAirport_Code, ValueListProperty: 'Code' },
+          { $Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'Name' },
+          { $Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'City' },
+          { $Type: 'Common.ValueListParameterDisplayOnly', ValueListProperty: 'Country' }
+        ]
+      }
+    }
+  );
+};
