@@ -55,100 +55,177 @@ function getAirlineName(callsign) {
 // In-memory cache to map Artificial IDs (500+) to ICAO24 addresses
 // This ensures that clicking "ID 500" always returns the same plane, even if the order changes.
 const idToIcaoMap = new Map();
+// Global Snapshot Cache to freeze data until manual refresh
+let cachedFlights = [];
 
 module.exports = cds.service.impl(async function () {
     const { Flights } = this.entities;
 
+    // Helper: Shuffle Array (Fisher-Yates)
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    // Helper: Fetch Fresh Data from 10 Airports
+    async function fetchLiveFlights() {
+        console.log('Fetching fresh live flight data from Top 10 Global Airports...');
+
+        const airports = [
+            { code: 'ATL', lat: 33.64, lon: -84.42 },
+            { code: 'LHR', lat: 51.47, lon: -0.45 },
+            { code: 'DXB', lat: 25.25, lon: 55.36 },
+            { code: 'HND', lat: 35.54, lon: 139.77 },
+            { code: 'ORD', lat: 41.97, lon: -87.90 },
+            { code: 'LAX', lat: 33.94, lon: -118.40 },
+            { code: 'CDG', lat: 49.00, lon: 2.55 },
+            { code: 'DFW', lat: 32.89, lon: -97.04 },
+            { code: 'DEN', lat: 39.85, lon: -104.67 },
+            { code: 'IST', lat: 41.27, lon: 28.75 }
+        ];
+
+        // Fetch concurrently (limit to top 15 per airport to gather ~150 candidates)
+        const flightPromises = airports.map(async (airport) => {
+            try {
+                const response = await axios.get('https://opensky-network.org/api/states/all', {
+                    params: {
+                        lamin: airport.lat - 0.2,
+                        lomin: airport.lon - 0.2,
+                        lamax: airport.lat + 0.2,
+                        lomax: airport.lon + 0.2
+                    },
+                    timeout: 4000 // Slightly longer timeout
+                });
+                const states = response.data.states || [];
+                // Return states tagged with their origin airport code
+                return states.slice(0, 15).map(s => ({ state: s, origin: airport.code }));
+            } catch (err) {
+                console.log(`Failed to fetch ${airport.code}: ${err.message}`);
+                return [];
+            }
+        });
+
+        const results = await Promise.all(flightPromises);
+        let allStates = results.flat();
+
+        console.log(`OpenSky: Fetched ${allStates.length} candidates.`);
+
+        // Randomize to pick 100 random flights from the candidates
+        shuffleArray(allStates);
+
+        // Limit to 100 flights (Snapshot)
+        const snapshotStates = allStates.slice(0, 100);
+
+        // Clear Maps
+        idToIcaoMap.clear();
+
+        // Map to CDS format
+        const finalFlights = snapshotStates.map((item, index) => {
+            const state = item.state;
+            const originCode = item.origin;
+
+            const artificialID = 500 + index;
+            const icao24 = state[0];
+
+            // Populate Cache
+            idToIcaoMap.set(artificialID, icao24);
+
+            const callsign = state[1]?.trim() || `FLT${index}`;
+            const displayAirline = getAirlineName(callsign);
+
+            return {
+                ID: artificialID,
+                Name: callsign + ' (Live)',
+                FlightStart: new Date().toISOString().split('.')[0] + 'Z',
+                FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString().split('.')[0] + 'Z',
+                OriginAirport_Code: originCode,
+                DestinationAirport_Code: 'ANY',
+                Airline: displayAirline,
+                FlightNumber: callsign,
+                AircraftType: 'Unknown Type',
+                Status: state[8] ? 'On Ground' : 'In Air',
+                PassengerCount: 0,
+                // Make sure internal state is preserved if needed for logic, 
+                // but for simple list, the above is enough.
+                // However, we need to store the FULL object in cache for the Detail View logic to work efficiently?
+                // Actually the Detail View uses 'idToIcaoMap' to look up, but better if we just cache the full flight entities.
+
+                // OpenSky Technical Fields
+                ICAO24: icao24,
+                Callsign: callsign,
+                OriginCountry: state[2],
+                Longitude: state[5],
+                Latitude: state[6],
+                Altitude: state[7],
+                Velocity: state[9],
+                TrueTrack: state[10],
+                VerticalRate: state[11],
+                OnGround: state[8]
+            };
+        });
+
+        console.log(`Snapshot created with ${finalFlights.length} flights.`);
+        return finalFlights;
+    }
+
+    // Action: Load New Data (Manual Refresh)
+    this.on('loadFlightData', async (req) => {
+        try {
+            cachedFlights = await fetchLiveFlights();
+            // Notify user? 
+            // In OData V4 actions usually return void or object. 
+            // Fiori List Report refresh is handled by the UI after action.
+            return;
+        } catch (err) {
+            req.error(500, 'Failed to load new data: ' + err.message);
+        }
+    });
+
     this.on('READ', Flights, async (req) => {
         const requestedID = req.data.ID;
 
-        // If specific ID is requested and it matches our "Real Data" range (500+)
+        // --- Detail View (Specific ID) ---
         if (requestedID && requestedID >= 500) {
-            try {
-                const response = await axios.get('https://opensky-network.org/api/states/all', {
-                    params: { lamin: 49.9, lomin: 8.4, lamax: 50.2, lomax: 8.8 }
-                });
-                const states = response.data.states || [];
+            // Check Global Cache First (Fastest & Stable)
+            const cachedFlight = cachedFlights.find(f => f.ID === requestedID);
 
-                // Stability Fix: Lookup ICAO from Cache
-                let targetState = null;
-                const cachedIcao = idToIcaoMap.get(requestedID);
-
-                if (cachedIcao) {
-                    targetState = states.find(s => s[0] === cachedIcao);
-                }
-
-                // Fallback: If not in cache or plane left the area, try index (less stable)
-                if (!targetState) {
-                    const targetIndex = requestedID - 500;
-                    if (states[targetIndex]) {
-                        targetState = states[targetIndex];
-                    }
-                }
-
-                if (targetState) {
-                    // Single Read Handler
-                    const state = targetState;
-                    const callsign = state[1]?.trim() || `FLT${requestedID}`; // Use requestedID to keep UI consistent
-                    const displayAirline = getAirlineName(callsign);
-
-                    // Default Weather (Empty)
-                    let weather = { temp: null, wind: null, code: null };
-
-                    try {
-                        // Fetch Weather for this location
-                        const weatherRes = await axios.get('https://api.open-meteo.com/v1/forecast', {
-                            params: {
-                                latitude: state[6],
-                                longitude: state[5],
-                                current_weather: true
-                            }
-                        });
-                        if (weatherRes.data && weatherRes.data.current_weather) {
-                            weather.temp = weatherRes.data.current_weather.temperature;
-                            weather.wind = weatherRes.data.current_weather.windspeed;
-                            weather.code = weatherRes.data.current_weather.weathercode;
+            if (cachedFlight) {
+                // Enrich with Weather (do not cache weather permanently to keep it somewhat fresh?)
+                // Or just fetch weather now.
+                // Let's re-use the weather fetching logic.
+                let weather = { temp: null, wind: null, code: null };
+                try {
+                    const weatherRes = await axios.get('https://api.open-meteo.com/v1/forecast', {
+                        params: {
+                            latitude: cachedFlight.Latitude,
+                            longitude: cachedFlight.Longitude,
+                            current_weather: true
                         }
-                    } catch (wErr) {
-                        console.error('Weather fetch failed:', wErr.message);
+                    });
+                    if (weatherRes.data && weatherRes.data.current_weather) {
+                        weather.temp = weatherRes.data.current_weather.temperature;
+                        weather.wind = weatherRes.data.current_weather.windspeed;
+                        weather.code = weatherRes.data.current_weather.weathercode;
                     }
+                } catch (e) { console.error('Weather error:', e.message); }
 
-                    return {
-                        ID: requestedID,
-                        Name: callsign + ' (Live)',
-                        FlightStart: new Date().toISOString().split('.')[0] + 'Z',
-                        FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString().split('.')[0] + 'Z',
-                        OriginAirport_Code: 'FRA',
-                        DestinationAirport_Code: 'ANY',
-                        Airline: displayAirline,
-                        FlightNumber: callsign,
-                        AircraftType: 'Unknown Type', // OpenSky free API does not provide Type
-                        Status: state[8] ? 'On Ground' : 'In Air',
-                        PassengerCount: 0,
-                        ICAO24: state[0],
-                        Callsign: callsign,
-                        OriginCountry: state[2],
-                        Longitude: state[5],
-                        Latitude: state[6],
-                        Altitude: state[7],
-                        Velocity: state[9],
-                        TrueTrack: state[10],
-                        VerticalRate: state[11],
-                        OnGround: state[8],
-                        // Weather Mapping
-                        Weather_Temp: weather.temp,
-                        Weather_WindSpeed: weather.wind,
-                        Weather_Code: weather.code
-                    };
-                } else {
-                    req.error(404, `Flight ${requestedID} not found in current live data.`);
-                    return;
-                }
-            } catch (error) {
-                console.error('Error fetching details:', error.message);
-                req.error(500, 'Unable to fetch external data');
+                return { ...cachedFlight, Weather_Temp: weather.temp, Weather_WindSpeed: weather.wind, Weather_Code: weather.code };
+            }
+
+            // Fallback: If for some reason not in cache (e.g. app restart but UI held ID), try looking up ICAO
+            const icao = idToIcaoMap.get(requestedID);
+            if (icao) {
+                // Try to fetch specifically from OpenSky (legacy logic, keep as backup)
+                // ... (simplified for brevity: if cache is empty, user should refresh list)
+                req.error(404, 'Flight snapshot expired. Please refresh the list.');
                 return;
             }
+
+            req.error(404, 'Flight not found.');
+            return;
         }
 
         // If specific ID is requested but NOT in 500+ range, use DB
@@ -156,112 +233,21 @@ module.exports = cds.service.impl(async function () {
             return await cds.run(req.query);
         }
 
-        try {
-            console.log('Fetching live flight data from Top 10 Global Airports...');
-
-            // Top 10 Airports Bounding Boxes
-            const airports = [
-                { code: 'ATL', lat: 33.64, lon: -84.42 },
-                { code: 'LHR', lat: 51.47, lon: -0.45 },
-                { code: 'DXB', lat: 25.25, lon: 55.36 },
-                { code: 'HND', lat: 35.54, lon: 139.77 },
-                { code: 'ORD', lat: 41.97, lon: -87.90 },
-                { code: 'LAX', lat: 33.94, lon: -118.40 },
-                { code: 'CDG', lat: 49.00, lon: 2.55 },
-                { code: 'DFW', lat: 32.89, lon: -97.04 },
-                { code: 'DEN', lat: 39.85, lon: -104.67 },
-                { code: 'IST', lat: 41.27, lon: 28.75 }
-            ];
-
-            // Fetch concurrently (limit to top 5 per airport to gather candidates)
-            const flightPromises = airports.map(async (airport) => {
-                try {
-                    const response = await axios.get('https://opensky-network.org/api/states/all', {
-                        params: {
-                            lamin: airport.lat - 0.2,
-                            lomin: airport.lon - 0.2,
-                            lamax: airport.lat + 0.2,
-                            lomax: airport.lon + 0.2
-                        },
-                        timeout: 3000 // Short timeout
-                    });
-                    const states = response.data.states || [];
-                    // Return all found states from this region (slice 10 to be safe)
-                    return states.slice(0, 10).map(s => ({ state: s, origin: airport.code }));
-                } catch (err) {
-                    console.log(`Failed to fetch ${airport.code}: ${err.message}`);
-                    return [];
-                }
-            });
-
-            const results = await Promise.all(flightPromises);
-            let allStates = results.flat();
-
-            // Sort by freshness (last contact timestamp is index 4, time_position is index 3)
-            // Descending order (newest first)
-            allStates.sort((a, b) => {
-                const timeA = a.state[4] || a.state[3] || 0;
-                const timeB = b.state[4] || b.state[3] || 0;
-                return timeB - timeA;
-            });
-
-            // STRICT LIMIT: Top 10 Flights Globally
-            const limitedStates = allStates.slice(0, 10);
-
-            console.log(`OpenSky: Fetched ${allStates.length} raw, filtering to Top ${limitedStates.length} newest.`);
-
-            // Clear cache on list refresh
-            idToIcaoMap.clear();
-
-            const realFlights = limitedStates.map((item, index) => {
-                const state = item.state;
-                const originCode = item.origin;
-
-                const artificialID = 500 + index;
-                const icao24 = state[0];
-
-                // Populate Cache
-                idToIcaoMap.set(artificialID, icao24);
-
-                const callsign = state[1]?.trim() || `FLT${index}`;
-                const displayAirline = getAirlineName(callsign);
-
-                return {
-                    ID: artificialID,
-                    Name: callsign + ' (Live)',
-                    FlightStart: new Date().toISOString().split('.')[0] + 'Z',
-                    FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString().split('.')[0] + 'Z',
-                    OriginAirport_Code: originCode,
-                    DestinationAirport_Code: 'ANY',
-                    Airline: displayAirline,
-                    FlightNumber: callsign,
-                    AircraftType: 'Unknown Type',
-                    Status: state[8] ? 'On Ground' : 'In Air',
-                    PassengerCount: 0,
-                    // OpenSky Technical Fields
-                    ICAO24: icao24,
-                    Callsign: callsign,
-                    OriginCountry: state[2],
-                    Longitude: state[5],
-                    Latitude: state[6],
-                    Altitude: state[7],
-                    Velocity: state[9],
-                    TrueTrack: state[10],
-                    VerticalRate: state[11],
-                    OnGround: state[8]
-                };
-            });
-
-            if (realFlights.length > 0) {
-                return realFlights;
-            } else {
-                console.log('No live flights found, falling back to database.');
+        // --- List View ---
+        // If Cache is empty, fetch initial data
+        if (cachedFlights.length === 0) {
+            try {
+                cachedFlights = await fetchLiveFlights();
+            } catch (err) {
+                console.error('Initial fetch failed:', err.message);
                 return await cds.run(req.query);
             }
-
-        } catch (error) {
-            console.error('Error fetching OpenSky data:', error.message);
-            return await cds.run(req.query);
         }
+
+        // Return the Frozen Cache
+        // Apply limit/skip from query if needed? 
+        // CDS handles $top/$skip on the returned array automatically in simple cases, 
+        // but for robustness we just return the full array and let CAP handle OData query options.
+        return cachedFlights;
     });
 });

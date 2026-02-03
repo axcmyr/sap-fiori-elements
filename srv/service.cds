@@ -1,13 +1,8 @@
 using my.flight as my from '../db/schema';
 
 service FlightService {
-  @readonly entity Flights as projection on my.Flights {
-    *,
-    to_Bookings : redirected to Bookings
+  entity Flights as projection on my.Flights actions {
+    action loadFlightData();
   };
-  @readonly entity Bookings as projection on my.Bookings {
-    *,
-    Flight : redirected to Flights
-  };
-  @readonly entity Airports as projection on my.Airports;
+  entity Airports as projection on my.Airports;
 }

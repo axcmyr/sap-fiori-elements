@@ -16,6 +16,7 @@ annotate FlightService.Flights with @(
     },
     SelectionFields: [ FlightStart, OriginAirport_Code, DestinationAirport_Code, ID, Name, Airline, Status ],
     LineItem: [
+      { $Type: 'UI.DataFieldForAction', Action: 'FlightService.loadFlightData', Label: '{i18n>LoadData}' },
       { Value: ID, Label: '{i18n>ID}' },
       { Value: Airline, Label: '{i18n>Airline}' },
       { Value: OriginCountry, Label: '{i18n>OriginCountry}' },
