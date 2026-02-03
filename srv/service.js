@@ -52,6 +52,10 @@ function getAirlineName(callsign) {
     return airlineMap[code] || code; // Return Name if found, otherwise valid ICAO code
 }
 
+// In-memory cache to map Artificial IDs (500+) to ICAO24 addresses
+// This ensures that clicking "ID 500" always returns the same plane, even if the order changes.
+const idToIcaoMap = new Map();
+
 module.exports = cds.service.impl(async function () {
     const { Flights } = this.entities;
 
@@ -66,14 +70,26 @@ module.exports = cds.service.impl(async function () {
                 });
                 const states = response.data.states || [];
 
-                // Re-map to find the specific flight
-                // Note: Since 'index' changes, this is unstable, but sufficient for a prototype.
-                const targetIndex = requestedID - 500;
-                const state = states[targetIndex];
+                // Stability Fix: Lookup ICAO from Cache
+                let targetState = null;
+                const cachedIcao = idToIcaoMap.get(requestedID);
 
-                if (state) {
+                if (cachedIcao) {
+                    targetState = states.find(s => s[0] === cachedIcao);
+                }
+
+                // Fallback: If not in cache or plane left the area, try index (less stable)
+                if (!targetState) {
+                    const targetIndex = requestedID - 500;
+                    if (states[targetIndex]) {
+                        targetState = states[targetIndex];
+                    }
+                }
+
+                if (targetState) {
                     // Single Read Handler
-                    const callsign = state[1]?.trim() || `FLT${targetIndex}`;
+                    const state = targetState;
+                    const callsign = state[1]?.trim() || `FLT${requestedID}`; // Use requestedID to keep UI consistent
                     const displayAirline = getAirlineName(callsign);
 
                     // Default Weather (Empty)
@@ -149,11 +165,22 @@ module.exports = cds.service.impl(async function () {
             const states = response.data.states || [];
             console.log(`OpenSky returned ${states.length} flights around FRA.`);
 
+            // Clear cache on list refresh to prevent infinite growth
+            // In a multi-user, production app, this would need a better strategy (e.g. LRU or per-session)
+            // For this demo, clearing on list read is acceptable, assuming list read precedes detail read.
+            idToIcaoMap.clear();
+
             const realFlights = states.slice(0, 10).map((state, index) => {
+                const artificialID = 500 + index;
+                const icao24 = state[0];
+
+                // Populate Cache
+                idToIcaoMap.set(artificialID, icao24);
+
                 const callsign = state[1]?.trim() || `FLT${index}`;
                 const displayAirline = getAirlineName(callsign);
                 return {
-                    ID: 500 + index,
+                    ID: artificialID,
                     Name: callsign + ' (Live)',
                     FlightStart: new Date().toISOString().split('.')[0] + 'Z',
                     FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString().split('.')[0] + 'Z',
@@ -165,7 +192,7 @@ module.exports = cds.service.impl(async function () {
                     Status: state[8] ? 'On Ground' : 'In Air',
                     PassengerCount: 0,
                     // OpenSky Technical Fields
-                    ICAO24: state[0],
+                    ICAO24: icao24,
                     Callsign: callsign,
                     OriginCountry: state[2],
                     Longitude: state[5],
