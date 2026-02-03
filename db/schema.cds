@@ -1,7 +1,7 @@
 namespace my.flight;
 
 entity Flights {
-  key ID : UUID;
+  key ID : Integer;
   Name : String(100);
   FlightStart : DateTime;
   FlightEnd : DateTime;
@@ -23,7 +23,7 @@ entity Airports {
 }
 
 entity Bookings {
-  key ID : UUID;
+  key ID : Integer;
   PassengerName : String(100);
   SeatNumber : String(10);
   BookingDate : Date;
