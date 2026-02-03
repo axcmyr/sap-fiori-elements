@@ -1,0 +1,13 @@
+node_modules/
+.vscode/
+.DS_Store
+*.log
+dist/
+gen/
+*.sqlite
+connection.yaml
+default-*.json
+home/
+target/
+.env
+.npmrc
