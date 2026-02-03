@@ -7,6 +7,10 @@ entity Flights {
   FlightEnd : DateTime;
   OriginAirport : Association to Airports;
   DestinationAirport : Association to Airports;
+  Airline : String(100);
+  FlightNumber : String(10);
+  AircraftType : String(50);
+  Status : String(20);
   PassengerCount : Integer;
   to_Bookings : Composition of many Bookings on to_Bookings.Flight = $self;
 }
@@ -23,5 +27,8 @@ entity Bookings {
   PassengerName : String(100);
   SeatNumber : String(10);
   BookingDate : Date;
+  BookingStatus : String(20);
+  Class : String(20);
+  TicketPrice : Decimal(10,2);
   Flight : Association to Flights;
 }

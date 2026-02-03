@@ -1,16 +1,51 @@
-ID;PassengerName;SeatNumber;BookingDate;Flight_ID
-b1b2b3b4-8131-4340-9da2-12797669d101;Sarah Connor;12A;2023-10-01;32ed8839-8131-4340-9da2-12797669d001
-b1b2b3b4-8131-4340-9da2-12797669d102;John Smith;12B;2023-10-01;32ed8839-8131-4340-9da2-12797669d001
-b1b2b3b4-8131-4340-9da2-12797669d103;Ellen Ripley;14C;2023-10-01;32ed8839-8131-4340-9da2-12797669d001
-b1b2b3b4-8131-4340-9da2-12797669d104;Marty McFly;08F;2023-10-01;32ed8839-8131-4340-9da2-12797669d001
-b1b2b3b4-8131-4340-9da2-12797669d105;Doc Brown;08E;2023-10-01;32ed8839-8131-4340-9da2-12797669d001
-b1b2b3b4-8131-4340-9da2-12797669d106;Luke Skywalker;01A;2023-10-02;32ed8839-8131-4340-9da2-12797669d002
-b1b2b3b4-8131-4340-9da2-12797669d107;Leia Organa;01B;2023-10-02;32ed8839-8131-4340-9da2-12797669d002
-b1b2b3b4-8131-4340-9da2-12797669d108;Han Solo;02A;2023-10-02;32ed8839-8131-4340-9da2-12797669d002
-b1b2b3b4-8131-4340-9da2-12797669d109;Chewbacca;02B;2023-10-02;32ed8839-8131-4340-9da2-12797669d002
-b1b2b3b4-8131-4340-9da2-12797669d110;James Bond;07A;2023-10-02;32ed8839-8131-4340-9da2-12797669d002
-b1b2b3b4-8131-4340-9da2-12797669d111;Tony Stark;01A;2023-10-03;32ed8839-8131-4340-9da2-12797669d003
-b1b2b3b4-8131-4340-9da2-12797669d112;Steve Rogers;01B;2023-10-03;32ed8839-8131-4340-9da2-12797669d003
-b1b2b3b4-8131-4340-9da2-12797669d113;Natasha Romanoff;02A;2023-10-03;32ed8839-8131-4340-9da2-12797669d003
-b1b2b3b4-8131-4340-9da2-12797669d114;Bruce Banner;02B;2023-10-03;32ed8839-8131-4340-9da2-12797669d003
-b1b2b3b4-8131-4340-9da2-12797669d115;Thor Odinson;03A;2023-10-03;32ed8839-8131-4340-9da2-12797669d003
+ID;PassengerName;SeatNumber;BookingDate;BookingStatus;Class;TicketPrice;Flight_ID
+201;James Bond;007;2023-10-01;Confirmed;First;1500.00;101
+202;Harry Potter;934;2023-10-02;Confirmed;Economy;150.00;102
+203;Frodo Baggins;01A;2023-10-03;Cancelled;Economy;120.00;101
+204;Tony Stark;01B;2023-10-04;Confirmed;First;2500.00;103
+205;Steve Rogers;02A;2023-10-05;Confirmed;Business;800.00;103
+206;Natasha Romanoff;02B;2023-10-06;Confirmed;Business;850.00;104
+207;Bruce Wayne;01A;2023-10-07;Confirmed;First;3000.00;105
+208;Clark Kent;15C;2023-10-08;Confirmed;Economy;200.00;105
+209;Peter Parker;22F;2023-10-09;Confirmed;Economy;180.00;105
+210;Diana Prince;01A;2023-10-10;Confirmed;First;1200.00;106
+211;Wanda Maximoff;12A;2023-10-11;Cancelled;Economy;400.00;107
+212;Vision;12B;2023-10-11;Cancelled;Economy;400.00;107
+213;Sherlock Holmes;03A;2023-10-12;Confirmed;Business;600.00;102
+214;John Watson;03B;2023-10-12;Confirmed;Business;600.00;102
+215;Hercule Poirot;04A;2023-10-13;Confirmed;First;900.00;108
+216;Miss Marple;04B;2023-10-13;Confirmed;First;900.00;108
+217;Katniss Everdeen;11A;2023-10-14;Confirmed;Economy;300.00;109
+218;Peeta Mellark;11B;2023-10-14;Confirmed;Economy;300.00;109
+219;Luke Skywalker;05A;2023-10-15;Confirmed;Business;1100.00;110
+220;Leia Organa;05B;2023-10-15;Confirmed;Business;1100.00;110
+221;Han Solo;06A;2023-10-16;Confirmed;Economy;500.00;110
+222;Chewbacca;06B;2023-10-16;Confirmed;Economy;500.00;110
+223;Ellen Ripley;09A;2023-10-17;Confirmed;Economy;450.00;111
+224;Sarah Connor;09B;2023-10-17;Confirmed;Economy;450.00;111
+225;Marty McFly;08A;2023-10-18;Confirmed;Economy;350.00;112
+226;Doc Brown;08B;2023-10-18;Confirmed;Economy;350.00;112
+227;Neo;01A;2023-10-19;Confirmed;Business;950.00;113
+228;Trinity;01B;2023-10-19;Confirmed;Business;950.00;113
+229;Morpheus;02A;2023-10-19;Confirmed;Business;950.00;113
+230;Forrest Gump;15A;2023-10-20;Confirmed;Economy;600.00;114
+231;Walter White;14A;2023-10-21;Confirmed;Economy;550.00;115
+232;Jesse Pinkman;14B;2023-10-21;Confirmed;Economy;550.00;115
+233;Jon Snow;04F;2023-10-22;Confirmed;Business;1200.00;116
+234;Daenerys Targaryen;04A;2023-10-22;Confirmed;First;2200.00;116
+235;Tyrion Lannister;05A;2023-10-22;Confirmed;First;2200.00;116
+236;Arya Stark;20A;2023-10-23;Confirmed;Economy;400.00;117
+237;Sansa Stark;20B;2023-10-23;Confirmed;Economy;400.00;117
+238;Gandalf TheGrey;01A;2023-10-24;Confirmed;Business;1300.00;118
+239;Bilbo Baggins;12F;2023-10-25;Confirmed;Economy;850.00;119
+240;Legolas Greenleaf;12A;2023-10-25;Confirmed;Economy;850.00;119
+241;Gimli Gloinsson;12B;2023-10-25;Confirmed;Economy;850.00;119
+242;Aragorn Elessar;02A;2023-10-26;Confirmed;Business;1400.00;120
+243;Jack Sparrow;30A;2023-10-27;Confirmed;Economy;300.00;121
+244;Will Turner;30B;2023-10-27;Confirmed;Economy;300.00;121
+245;Elizabeth Swann;30C;2023-10-27;Confirmed;Economy;300.00;121
+246;Ethan Hunt;02A;2023-10-28;Confirmed;First;1800.00;122
+247;Jason Bourne;18A;2023-10-29;Confirmed;Economy;250.00;123
+248;Indiana Jones;10A;2023-10-30;Confirmed;Business;750.00;124
+249;Lara Croft;03A;2023-10-31;Confirmed;First;1600.00;125
+250;Nathan Drake;14F;2023-11-01;Confirmed;Economy;450.00;126

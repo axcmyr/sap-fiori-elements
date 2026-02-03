@@ -14,14 +14,17 @@ annotate FlightService.Flights with @(
       ],
       Visualizations: [ '@UI.LineItem' ]
     },
-    SelectionFields: [ FlightStart, OriginAirport_Code, DestinationAirport_Code, ID, Name ],
+    SelectionFields: [ FlightStart, OriginAirport_Code, DestinationAirport_Code, ID, Name, Airline, Status ],
     LineItem: [
       { Value: ID, Label: '{i18n>ID}' },
+      { Value: Airline, Label: '{i18n>Airline}' },
+      { Value: FlightNumber, Label: '{i18n>FlightNumber}' },
       { Value: Name, Label: '{i18n>Name}' },
       { Value: FlightStart, Label: '{i18n>FlightStart}' },
       { Value: FlightEnd, Label: '{i18n>FlightEnd}' },
       { Value: OriginAirport_Code, Label: '{i18n>OriginAirport}' },
       { Value: DestinationAirport_Code, Label: '{i18n>DestinationAirport}' },
+      { Value: Status, Label: '{i18n>Status}' },
       { Value: PassengerCount, Label: '{i18n>PassengerCount}' }
     ],
     Facets: [
@@ -41,11 +44,15 @@ annotate FlightService.Flights with @(
     FieldGroup#GeneralInfo: {
       Data: [
         { Value: ID, Label: '{i18n>ID}' },
+        { Value: Airline, Label: '{i18n>Airline}' },
+        { Value: FlightNumber, Label: '{i18n>FlightNumber}' },
         { Value: Name, Label: '{i18n>Name}' },
+        { Value: AircraftType, Label: '{i18n>AircraftType}' },
         { Value: FlightStart, Label: '{i18n>FlightStart}' },
         { Value: FlightEnd, Label: '{i18n>FlightEnd}' },
         { Value: OriginAirport_Code, Label: '{i18n>OriginAirport}' },
         { Value: DestinationAirport_Code, Label: '{i18n>DestinationAirport}' },
+        { Value: Status, Label: '{i18n>Status}' },
         { Value: PassengerCount, Label: '{i18n>PassengerCount}' }
       ]
     }
@@ -60,11 +67,15 @@ annotate FlightService.Bookings with @(
       Title: { Value: PassengerName },
       Description: { Value: ID }
     },
+    SelectionFields: [ BookingStatus, Class ],
     LineItem: [
       { Value: ID, Label: '{i18n>BookingID}' },
       { Value: PassengerName, Label: '{i18n>PassengerName}' },
       { Value: SeatNumber, Label: '{i18n>SeatNumber}' },
-      { Value: BookingDate, Label: '{i18n>BookingDate}' }
+      { Value: Class, Label: '{i18n>Class}' },
+      { Value: TicketPrice, Label: '{i18n>TicketPrice}' },
+      { Value: BookingDate, Label: '{i18n>BookingDate}' },
+      { Value: BookingStatus, Label: '{i18n>BookingStatus}' }
     ],
     Facets: [
              {
@@ -79,7 +90,10 @@ annotate FlightService.Bookings with @(
                { Value: ID, Label: '{i18n>BookingID}' },
                { Value: PassengerName, Label: '{i18n>PassengerName}' },
                { Value: SeatNumber, Label: '{i18n>SeatNumber}' },
-               { Value: BookingDate, Label: '{i18n>BookingDate}' }
+               { Value: Class, Label: '{i18n>Class}' },
+               { Value: TicketPrice, Label: '{i18n>TicketPrice}' },
+               { Value: BookingDate, Label: '{i18n>BookingDate}' },
+               { Value: BookingStatus, Label: '{i18n>BookingStatus}' }
              ]
            }
   }
