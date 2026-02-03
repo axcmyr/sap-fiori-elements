@@ -173,7 +173,7 @@ module.exports = cds.service.impl(async function () {
                 { code: 'IST', lat: 41.27, lon: 28.75 }
             ];
 
-            // Fetch concurrently (limit to top 3 per airport)
+            // Fetch concurrently (limit to top 5 per airport to gather candidates)
             const flightPromises = airports.map(async (airport) => {
                 try {
                     const response = await axios.get('https://opensky-network.org/api/states/all', {
@@ -186,8 +186,8 @@ module.exports = cds.service.impl(async function () {
                         timeout: 3000 // Short timeout
                     });
                     const states = response.data.states || [];
-                    // Return states tagged with their origin airport code
-                    return states.slice(0, 3).map(s => ({ state: s, origin: airport.code }));
+                    // Return all found states from this region (slice 10 to be safe)
+                    return states.slice(0, 10).map(s => ({ state: s, origin: airport.code }));
                 } catch (err) {
                     console.log(`Failed to fetch ${airport.code}: ${err.message}`);
                     return [];
@@ -195,13 +195,25 @@ module.exports = cds.service.impl(async function () {
             });
 
             const results = await Promise.all(flightPromises);
-            const allStates = results.flat(); // Flatten array of arrays
-            console.log(`OpenSky returned ${allStates.length} live flights across top airports.`);
+            let allStates = results.flat();
+
+            // Sort by freshness (last contact timestamp is index 4, time_position is index 3)
+            // Descending order (newest first)
+            allStates.sort((a, b) => {
+                const timeA = a.state[4] || a.state[3] || 0;
+                const timeB = b.state[4] || b.state[3] || 0;
+                return timeB - timeA;
+            });
+
+            // STRICT LIMIT: Top 10 Flights Globally
+            const limitedStates = allStates.slice(0, 10);
+
+            console.log(`OpenSky: Fetched ${allStates.length} raw, filtering to Top ${limitedStates.length} newest.`);
 
             // Clear cache on list refresh
             idToIcaoMap.clear();
 
-            const realFlights = allStates.map((item, index) => {
+            const realFlights = limitedStates.map((item, index) => {
                 const state = item.state;
                 const originCode = item.origin;
 
