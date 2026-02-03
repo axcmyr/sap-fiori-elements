@@ -19,11 +19,30 @@ module.exports = cds.service.impl(async function () {
                 // Re-map to find the specific flight
                 // Note: Since 'index' changes, this is unstable, but sufficient for a prototype.
                 // ideally we would map ICAO24 to ID.
-                const targetIndex = requestedID - 500;
-                const state = states[targetIndex];
-
                 if (state) {
                     const callsign = state[1]?.trim() || `FLT${targetIndex}`;
+
+                    // Default Weather (Empty)
+                    let weather = { temp: null, wind: null, code: null };
+
+                    try {
+                        // Fetch Weather for this location
+                        const weatherRes = await axios.get('https://api.open-meteo.com/v1/forecast', {
+                            params: {
+                                latitude: state[6],
+                                longitude: state[5],
+                                current_weather: true
+                            }
+                        });
+                        if (weatherRes.data && weatherRes.data.current_weather) {
+                            weather.temp = weatherRes.data.current_weather.temperature;
+                            weather.wind = weatherRes.data.current_weather.windspeed;
+                            weather.code = weatherRes.data.current_weather.weathercode;
+                        }
+                    } catch (wErr) {
+                        console.error('Weather fetch failed:', wErr.message);
+                    }
+
                     return {
                         ID: requestedID,
                         Name: callsign + ' (Live)',
@@ -45,7 +64,11 @@ module.exports = cds.service.impl(async function () {
                         Velocity: state[9],
                         TrueTrack: state[10],
                         VerticalRate: state[11],
-                        OnGround: state[8]
+                        OnGround: state[8],
+                        // Weather Mapping
+                        Weather_Temp: weather.temp,
+                        Weather_WindSpeed: weather.wind,
+                        Weather_Code: weather.code
                     };
                 } else {
                     req.error(404, `Flight ${requestedID} not found in current live data.`);

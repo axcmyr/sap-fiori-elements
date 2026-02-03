@@ -23,6 +23,10 @@ entity Flights {
   TrueTrack : Double;
   VerticalRate : Double;
   OnGround : Boolean;
+  // Live Weather Data
+  Weather_Temp : Double;
+  Weather_WindSpeed : Double;
+  Weather_Code : Integer;
   to_Bookings : Composition of many Bookings on to_Bookings.Flight = $self;
 }
 

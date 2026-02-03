@@ -35,11 +35,12 @@ annotate FlightService.Flights with @(
         Label: '{i18n>GeneralInformation}',
         Target: '@UI.FieldGroup#GeneralInfo'
       },
+
       {
-        $Type: 'UI.ReferenceFacet',
-        ID: 'BookingsFacet',
-        Label: '{i18n>Bookings}',
-        Target: 'to_Bookings/@UI.LineItem'
+        $Type : 'UI.ReferenceFacet',
+        ID : 'WeatherFacet',
+        Label : '{i18n>CurrentWeather}',
+        Target : '@UI.FieldGroup#Weather',
       },
       {
         $Type : 'UI.ReferenceFacet',
@@ -48,6 +49,15 @@ annotate FlightService.Flights with @(
         Target : '@UI.FieldGroup#TechnicalData',
       },
     ],
+    
+    FieldGroup #Weather : {
+      $Type : 'UI.FieldGroupType',
+      Data : [
+        { $Type : 'UI.DataField', Value : Weather_Temp, Label : '{i18n>Temperature}' },
+        { $Type : 'UI.DataField', Value : Weather_WindSpeed, Label : '{i18n>WindSpeed}' },
+        // { $Type : 'UI.DataField', Value : Weather_Code, Label : '{i18n>WeatherCondition}' }
+      ]
+    },
 
     FieldGroup #TechnicalData : {
       $Type : 'UI.FieldGroupType',
