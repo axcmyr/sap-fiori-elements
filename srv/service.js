@@ -97,7 +97,7 @@ module.exports = cds.service.impl(async function () {
                         lamax: airport.lat + 0.2,
                         lomax: airport.lon + 0.2
                     },
-                    timeout: 4000 // Slightly longer timeout
+                    timeout: 5000 // Increased timeout to 5s
                 });
                 const states = response.data.states || [];
                 // Return states tagged with their origin airport code
@@ -113,14 +113,13 @@ module.exports = cds.service.impl(async function () {
 
         console.log(`OpenSky: Fetched ${allStates.length} candidates.`);
 
+        if (allStates.length === 0) return [];
+
         // Randomize to pick 100 random flights from the candidates
         shuffleArray(allStates);
 
         // Limit to 100 flights (Snapshot)
         const snapshotStates = allStates.slice(0, 100);
-
-        // Clear Maps
-        idToIcaoMap.clear();
 
         // Map to CDS format
         const finalFlights = snapshotStates.map((item, index) => {
@@ -130,8 +129,12 @@ module.exports = cds.service.impl(async function () {
             const artificialID = 500 + index;
             const icao24 = state[0];
 
-            // Populate Cache
-            idToIcaoMap.set(artificialID, icao24);
+            // Populate Cache (Note: We do this inside the map, but we also need to clear it first)
+            // Ideally we clear map before setting. 
+            // BUT: this fetch function shouldn't side-effect global map until we are sure we have data.
+            // Let's just return the array here and update map in the caller.
+            // ...refactoring slightly to keep it clean...
+            // Actually, existing code does side-effect. Let's stick to pattern but be careful.
 
             const callsign = state[1]?.trim() || `FLT${index}`;
             const displayAirline = getAirlineName(callsign);
@@ -148,12 +151,6 @@ module.exports = cds.service.impl(async function () {
                 AircraftType: 'Unknown Type',
                 Status: state[8] ? 'On Ground' : 'In Air',
                 PassengerCount: 0,
-                // Make sure internal state is preserved if needed for logic, 
-                // but for simple list, the above is enough.
-                // However, we need to store the FULL object in cache for the Detail View logic to work efficiently?
-                // Actually the Detail View uses 'idToIcaoMap' to look up, but better if we just cache the full flight entities.
-
-                // OpenSky Technical Fields
                 ICAO24: icao24,
                 Callsign: callsign,
                 OriginCountry: state[2],
@@ -174,11 +171,16 @@ module.exports = cds.service.impl(async function () {
     // Action: Load New Data (Manual Refresh)
     this.on('loadFlightData', async (req) => {
         try {
-            cachedFlights = await fetchLiveFlights();
-            // Notify user? 
-            // In OData V4 actions usually return void or object. 
-            // Fiori List Report refresh is handled by the UI after action.
-            return;
+            const freshFlights = await fetchLiveFlights();
+            if (freshFlights.length > 0) {
+                cachedFlights = freshFlights;
+
+                // Re-populate Map for Detail View Stability
+                idToIcaoMap.clear();
+                cachedFlights.forEach(f => idToIcaoMap.set(f.ID, f.ICAO24));
+            } else {
+                console.log('Manual refresh returned 0 flights. Keeping existing cache.');
+            }
         } catch (err) {
             req.error(500, 'Failed to load new data: ' + err.message);
         }
@@ -189,13 +191,11 @@ module.exports = cds.service.impl(async function () {
 
         // --- Detail View (Specific ID) ---
         if (requestedID && requestedID >= 500) {
-            // Check Global Cache First (Fastest & Stable)
+            // Check Global Cache First
             const cachedFlight = cachedFlights.find(f => f.ID === requestedID);
 
             if (cachedFlight) {
-                // Enrich with Weather (do not cache weather permanently to keep it somewhat fresh?)
-                // Or just fetch weather now.
-                // Let's re-use the weather fetching logic.
+                // Enrich with Weather
                 let weather = { temp: null, wind: null, code: null };
                 try {
                     const weatherRes = await axios.get('https://api.open-meteo.com/v1/forecast', {
@@ -215,16 +215,7 @@ module.exports = cds.service.impl(async function () {
                 return { ...cachedFlight, Weather_Temp: weather.temp, Weather_WindSpeed: weather.wind, Weather_Code: weather.code };
             }
 
-            // Fallback: If for some reason not in cache (e.g. app restart but UI held ID), try looking up ICAO
-            const icao = idToIcaoMap.get(requestedID);
-            if (icao) {
-                // Try to fetch specifically from OpenSky (legacy logic, keep as backup)
-                // ... (simplified for brevity: if cache is empty, user should refresh list)
-                req.error(404, 'Flight snapshot expired. Please refresh the list.');
-                return;
-            }
-
-            req.error(404, 'Flight not found.');
+            req.error(404, 'Flight not found. Please refresh the list.');
             return;
         }
 
@@ -234,20 +225,29 @@ module.exports = cds.service.impl(async function () {
         }
 
         // --- List View ---
-        // If Cache is empty, fetch initial data
+        // If Cache is empty, attempt initial fetch
         if (cachedFlights.length === 0) {
             try {
-                cachedFlights = await fetchLiveFlights();
+                const freshFlights = await fetchLiveFlights();
+                if (freshFlights.length > 0) {
+                    cachedFlights = freshFlights;
+                    // Populate Map
+                    idToIcaoMap.clear();
+                    cachedFlights.forEach(f => idToIcaoMap.set(f.ID, f.ICAO24));
+                }
             } catch (err) {
                 console.error('Initial fetch failed:', err.message);
-                return await cds.run(req.query);
             }
         }
 
-        // Return the Frozen Cache
-        // Apply limit/skip from query if needed? 
-        // CDS handles $top/$skip on the returned array automatically in simple cases, 
-        // but for robustness we just return the full array and let CAP handle OData query options.
+        // FALLBACK: If Cache is STILL empty (API failed/empty), return DB Data
+        if (cachedFlights.length === 0) {
+            console.log('Live fetch returned no data. Falling back to Database.');
+            return await cds.run(req.query);
+        }
+
+        // Return Snapshot
         return cachedFlights;
     });
 });
+```
