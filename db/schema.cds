@@ -12,6 +12,17 @@ entity Flights {
   AircraftType : String(50);
   Status : String(20);
   PassengerCount : Integer;
+  // OpenSky Technical Data
+  ICAO24 : String(10);
+  Callsign : String(20);
+  OriginCountry : String(100);
+  Longitude : Double;
+  Latitude : Double;
+  Altitude : Double;
+  Velocity : Double;
+  TrueTrack : Double;
+  VerticalRate : Double;
+  OnGround : Boolean;
   to_Bookings : Composition of many Bookings on to_Bookings.Flight = $self;
 }
 

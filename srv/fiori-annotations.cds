@@ -18,6 +18,7 @@ annotate FlightService.Flights with @(
     LineItem: [
       { Value: ID, Label: '{i18n>ID}' },
       { Value: Airline, Label: '{i18n>Airline}' },
+      { Value: OriginCountry, Label: '{i18n>OriginCountry}' },
       { Value: FlightNumber, Label: '{i18n>FlightNumber}' },
       { Value: Name, Label: '{i18n>Name}' },
       { Value: FlightStart, Label: '{i18n>FlightStart}' },
@@ -39,8 +40,32 @@ annotate FlightService.Flights with @(
         ID: 'BookingsFacet',
         Label: '{i18n>Bookings}',
         Target: 'to_Bookings/@UI.LineItem'
-      }
+      },
+      {
+        $Type : 'UI.ReferenceFacet',
+        ID : 'TechnicalDataFacet',
+        Label : '{i18n>TechnicalData}',
+        Target : '@UI.FieldGroup#TechnicalData',
+      },
     ],
+
+    FieldGroup #TechnicalData : {
+      $Type : 'UI.FieldGroupType',
+      Data : [
+        { $Type : 'UI.DataField', Value : ICAO24, Label : '{i18n>ICAO24}' },
+        { $Type : 'UI.DataField', Value : Airline, Label : '{i18n>Airline}' },
+        { $Type : 'UI.DataField', Value : OriginCountry, Label : '{i18n>OriginCountry}' },
+        { $Type : 'UI.DataField', Value : OriginAirport_Code, Label : '{i18n>OriginAirport}' },
+        { $Type : 'UI.DataField', Value : Velocity, Label : '{i18n>Velocity}' },
+        { $Type : 'UI.DataField', Value : Altitude, Label : '{i18n>Altitude}' },
+        { $Type : 'UI.DataField', Value : TrueTrack, Label : '{i18n>TrueTrack}' },
+        { $Type : 'UI.DataField', Value : VerticalRate, Label : '{i18n>VerticalRate}' },
+        { $Type : 'UI.DataField', Value : OnGround, Label : '{i18n>OnGround}' },
+        { $Type : 'UI.DataField', Value : Longitude, Label : '{i18n>Longitude}' },
+        { $Type : 'UI.DataField', Value : Latitude, Label : '{i18n>Latitude}' },
+      ]
+    },
+
     FieldGroup#GeneralInfo: {
       Data: [
         { Value: ID, Label: '{i18n>ID}' },

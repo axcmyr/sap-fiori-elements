@@ -27,22 +27,32 @@ module.exports = cds.service.impl(async function () {
             console.log(`OpenSky returned ${states.length} flights around FRA.`);
 
             // Map OpenSky data to our Schema
-            // OpenSky State Vector: [icao24, callsign, origin_country, time_position, last_contact, longitude, latitude, baro_altitude, on_ground, velocity, true_track, vertical_rate, sensors, geo_altitude, squawk, spi, position_source]
-            // We limit to 10 flights to prevent UI overload
+            // OpenSky State Vector: [0:icao24, 1:callsign, 2:origin_country, 3:time_position, 4:last_contact, 5:longitude, 6:latitude, 7:baro_altitude, 8:on_ground, 9:velocity, 10:true_track, 11:vertical_rate, 12:sensors, 13:geo_altitude, 14:squawk, 15:spi, 16:position_source]
             const realFlights = states.slice(0, 10).map((state, index) => {
                 const callsign = state[1]?.trim() || `FLT${index}`;
                 return {
-                    ID: 500 + index, // Use a distinct ID range for real-time data
+                    ID: 500 + index,
                     Name: callsign + ' (Live)',
-                    FlightStart: new Date().toISOString(), // Current time for live flights
-                    FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString(), // +1 hour
-                    OriginAirport_Code: 'FRA', // Assumed based on Bbox, simplified
-                    DestinationAirport_Code: 'ANY', // OpenSky free API doesn't give destination
+                    FlightStart: new Date().toISOString(),
+                    FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString(),
+                    OriginAirport_Code: 'FRA',
+                    DestinationAirport_Code: 'ANY',
                     Airline: state[2] || 'Unknown Airline',
                     FlightNumber: callsign,
                     AircraftType: 'Live Traffic',
-                    Status: 'In Air',
-                    PassengerCount: 0 // Unknown for live traffic
+                    Status: state[8] ? 'On Ground' : 'In Air',
+                    PassengerCount: 0,
+                    // OpenSky Technical Fields
+                    ICAO24: state[0],
+                    Callsign: callsign,
+                    OriginCountry: state[2],
+                    Longitude: state[5],
+                    Latitude: state[6],
+                    Altitude: state[7], // baro_altitude
+                    Velocity: state[9],
+                    TrueTrack: state[10],
+                    VerticalRate: state[11],
+                    OnGround: state[8]
                 };
             });
 
