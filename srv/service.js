@@ -1,6 +1,57 @@
 const cds = require('@sap/cds');
 const axios = require('axios');
 
+// Basic Airline Code to Name Mapping
+const airlineMap = {
+    'DLH': 'Lufthansa',
+    'BAW': 'British Airways',
+    'AFR': 'Air France',
+    'KLM': 'KLM Royal Dutch Airlines',
+    'UAL': 'United Airlines',
+    'DAL': 'Delta Air Lines',
+    'AAL': 'American Airlines',
+    'UAE': 'Emirates',
+    'QFA': 'Qantas',
+    'SIA': 'Singapore Airlines',
+    'THY': 'Turkish Airlines',
+    'HAL': 'Hawaiian Airlines',
+    'JAL': 'Japan Airlines',
+    'ANA': 'All Nippon Airways',
+    'SAS': 'SAS',
+    'SWR': 'Swiss International Air Lines',
+    'EZY': 'easyJet',
+    'RYR': 'Ryanair',
+    'WZZ': 'Wizz Air',
+    'VLG': 'Vueling',
+    'TAP': 'TAP Air Portugal',
+    'IBE': 'Iberia',
+    'EIN': 'Aer Lingus',
+    'AZA': 'Alitalia',
+    'FIN': 'Finnair',
+    'NGB': 'Norwegian Air Shuttle',
+    'NAX': 'Norwegian Air International',
+    'ICE': 'Icelandair',
+    'VIR': 'Virgin Atlantic',
+    'AIC': 'Air India',
+    'THA': 'Thai Airways',
+    'HVN': 'Vietnam Airlines',
+    'EVA': 'EVA Air',
+    'KAL': 'Korean Air',
+    'CSN': 'China Southern',
+    'CCA': 'Air China',
+    'AAR': 'Asiana Airlines',
+    'ETH': 'Ethiopian Airlines',
+    'QTR': 'Qatar Airways',
+    'ETD': 'Etihad Airways'
+};
+
+function getAirlineName(callsign) {
+    if (!callsign) return 'Unknown Airline';
+    // ICAO Callsign: 3 letters + ID (e.g. DLH410)
+    const code = callsign.substring(0, 3).toUpperCase();
+    return airlineMap[code] || code; // Return Name if found, otherwise valid ICAO code
+}
+
 module.exports = cds.service.impl(async function () {
     const { Flights } = this.entities;
 
@@ -10,7 +61,6 @@ module.exports = cds.service.impl(async function () {
         // If specific ID is requested and it matches our "Real Data" range (500+)
         if (requestedID && requestedID >= 500) {
             try {
-                console.log(`Fetching live flight details for ID ${requestedID}...`);
                 const response = await axios.get('https://opensky-network.org/api/states/all', {
                     params: { lamin: 49.9, lomin: 8.4, lamax: 50.2, lomax: 8.8 }
                 });
@@ -24,7 +74,7 @@ module.exports = cds.service.impl(async function () {
                 if (state) {
                     // Single Read Handler
                     const callsign = state[1]?.trim() || `FLT${targetIndex}`;
-                    const extractedAirline = callsign.replace(/[0-9]/g, '').trim();
+                    const displayAirline = getAirlineName(callsign);
 
                     // Default Weather (Empty)
                     let weather = { temp: null, wind: null, code: null };
@@ -54,9 +104,9 @@ module.exports = cds.service.impl(async function () {
                         FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString().split('.')[0] + 'Z',
                         OriginAirport_Code: 'FRA',
                         DestinationAirport_Code: 'ANY',
-                        Airline: extractedAirline || state[2] || 'Unknown',
+                        Airline: displayAirline,
                         FlightNumber: callsign,
-                        AircraftType: 'Unknown Type',
+                        AircraftType: 'Unknown Type', // OpenSky free API does not provide Type
                         Status: state[8] ? 'On Ground' : 'In Air',
                         PassengerCount: 0,
                         ICAO24: state[0],
@@ -101,7 +151,7 @@ module.exports = cds.service.impl(async function () {
 
             const realFlights = states.slice(0, 10).map((state, index) => {
                 const callsign = state[1]?.trim() || `FLT${index}`;
-                const extractedAirline = callsign.replace(/[0-9]/g, '').trim();
+                const displayAirline = getAirlineName(callsign);
                 return {
                     ID: 500 + index,
                     Name: callsign + ' (Live)',
@@ -109,11 +159,12 @@ module.exports = cds.service.impl(async function () {
                     FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString().split('.')[0] + 'Z',
                     OriginAirport_Code: 'FRA',
                     DestinationAirport_Code: 'ANY',
-                    Airline: extractedAirline || state[2] || 'Unknown',
+                    Airline: displayAirline,
                     FlightNumber: callsign,
                     AircraftType: 'Unknown Type',
                     Status: state[8] ? 'On Ground' : 'In Air',
                     PassengerCount: 0,
+                    // OpenSky Technical Fields
                     ICAO24: state[0],
                     Callsign: callsign,
                     OriginCountry: state[2],
