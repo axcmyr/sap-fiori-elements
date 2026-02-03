@@ -18,9 +18,13 @@ module.exports = cds.service.impl(async function () {
 
                 // Re-map to find the specific flight
                 // Note: Since 'index' changes, this is unstable, but sufficient for a prototype.
-                // ideally we would map ICAO24 to ID.
+                const targetIndex = requestedID - 500;
+                const state = states[targetIndex];
+
                 if (state) {
+                    // Single Read Handler
                     const callsign = state[1]?.trim() || `FLT${targetIndex}`;
+                    const extractedAirline = callsign.replace(/[0-9]/g, '').trim();
 
                     // Default Weather (Empty)
                     let weather = { temp: null, wind: null, code: null };
@@ -46,13 +50,13 @@ module.exports = cds.service.impl(async function () {
                     return {
                         ID: requestedID,
                         Name: callsign + ' (Live)',
-                        FlightStart: new Date().toISOString(),
-                        FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString(),
+                        FlightStart: new Date().toISOString().split('.')[0] + 'Z',
+                        FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString().split('.')[0] + 'Z',
                         OriginAirport_Code: 'FRA',
                         DestinationAirport_Code: 'ANY',
-                        Airline: state[2] || 'Unknown Airline',
+                        Airline: extractedAirline || state[2] || 'Unknown',
                         FlightNumber: callsign,
-                        AircraftType: 'Live Traffic',
+                        AircraftType: 'Unknown Type',
                         Status: state[8] ? 'On Ground' : 'In Air',
                         PassengerCount: 0,
                         ICAO24: state[0],
@@ -97,16 +101,17 @@ module.exports = cds.service.impl(async function () {
 
             const realFlights = states.slice(0, 10).map((state, index) => {
                 const callsign = state[1]?.trim() || `FLT${index}`;
+                const extractedAirline = callsign.replace(/[0-9]/g, '').trim();
                 return {
                     ID: 500 + index,
                     Name: callsign + ' (Live)',
-                    FlightStart: new Date().toISOString(),
-                    FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString(),
+                    FlightStart: new Date().toISOString().split('.')[0] + 'Z',
+                    FlightEnd: new Date(Date.now() + 3600 * 1000).toISOString().split('.')[0] + 'Z',
                     OriginAirport_Code: 'FRA',
                     DestinationAirport_Code: 'ANY',
-                    Airline: state[2] || 'Unknown Airline',
+                    Airline: extractedAirline || state[2] || 'Unknown',
                     FlightNumber: callsign,
-                    AircraftType: 'Live Traffic',
+                    AircraftType: 'Unknown Type',
                     Status: state[8] ? 'On Ground' : 'In Air',
                     PassengerCount: 0,
                     ICAO24: state[0],
